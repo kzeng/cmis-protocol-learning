@@ -3,7 +3,7 @@
 > 教材：OIF-CMIS-05.3（Rev 5.3）  
 > 学习目标：面向光模块 Firmware 开发，建立从协议语义、管理访问、配置事务、状态机到 Memory Map 的完整心智模型。  
 > 文档性质：持续更新的长期复习资料。`session.md` 保存学习轨迹，本文件保存整理后的知识体系。  
-> 当前覆盖：M1–M7 已掌握；M8 学习至 Page 00h–05h 的主要用途。
+> 当前覆盖：M1–M8 已掌握；即将进入 M9 Lane/Data Path 控制与状态。
 
 ---
 
@@ -22,6 +22,7 @@
 - 每出现一次有价值的误解，加入“常见误区”。
 - 每完成一个模块，补充综合流程和自测题；每组自测题下方必须提供可折叠的参考答案与解析。折叠块内部统一使用自包含 HTML（列表、粗体、行内代码和代码块均用 HTML 标签），不在 HTML 容器内混用 Markdown。
 - 规范原文与教学抽象冲突时，以 OIF-CMIS 5.3 规范为准，并记录纠正原因。
+- 新技术术语第一次出现时，先给出定义再用于讲解或出题。缩略词必须同时给出英文全称、中文含义、用途/所属层次；容易混淆时还要说明它与相近术语的区别。后续重复出现时才可只用简称。
 
 ---
 
@@ -847,7 +848,7 @@ WRITE PageMapping
 </details>
 ---
 
-# M8 Page 00h–05h 管理页（学习中）
+# M8 Page 00h–05h 管理页
 
 ## 8.1 Page 00h：Administrative Information
 
@@ -944,7 +945,33 @@ Page 04h 是能力广告页 ≠ 实时调谐命令页
 
 不能一开始就直接访问 Optional Page。若形成 unsupported Page Address，模块可能清除 PageSelect，使 Upper Memory 映射回 Page 00h。
 
-## 8.8 Page 00h–05h 速查表
+访问顺序必须是：
+
+```text
+发现支持（Page 01h）
+→ 选择目标 Page
+→ 等待 Remapping 完成
+→ 执行目标 Page 的 READ/WRITE
+```
+
+这里“等待 Remapping”不仅是为了避免操作失败。映射未完成时，Upper Memory 可能仍对应旧 Page；如果模块接受此时的 WRITE，就可能写到错误页面。规范要求模块拒绝可能造成 stale data 或 wrong-page access 的访问，Host 则应等待或用 `TEST()` 确认访问就绪。
+
+## 8.8 页面读写属性与边界
+
+- **Page 00h**：模块身份和基础特征主要是静态只读信息。Host 不能修改 Vendor Name、Part Number 或 Serial Number。
+- **Page 01h**：能力广告主要是静态只读信息。Host 读取它来发现模块能力，不能通过改写广告创造新能力。
+- **Page 02h**：模块定义的 Threshold 为只读。Host 用它解释 Monitor/Flag，不能任意改变模块的告警判定标准。
+- **Page 03h**：在模块广告支持时是 Host-writable User EEPROM。Host 完成 Page 选择和 Remapping 后可以写入，但仍需遵守 EEPROM 写周期、地址范围和访问限制。
+- **Page 04h/05h**：是否存在及具体字段属性以能力广告和相应字段定义为准，不能因 Page 存在就假设所有字段可写。
+
+关键区别：
+
+```text
+“页面可写”不等于“可以跳过发现、选择和时序流程”
+“页面只读”也不等于“页面数据永远不会因模块版本或实现而不同”
+```
+
+## 8.9 Page 00h–05h 速查表
 
 | Page | 核心用途 | 记忆方式 | 支持属性 |
 |---|---|---|---|
@@ -955,13 +982,30 @@ Page 04h 是能力广告页 ≠ 实时调谐命令页
 | 04h | Tunable Laser Capabilities | 激光器能调什么 | Optional |
 | 05h | Form-Factor-specific Signals | 封装专用信号 | Optional |
 
-## 8.9 当前待继续内容
+## 8.10 综合掌握结论
 
-- 完成 Optional Page 访问顺序题；
-- 进一步比较各 Page 的静态/动态、RO/RW 属性；
-- 做 Page 00h–05h 综合访问流程验收。
+已经掌握：
 
-## 8.10 自测
+- Page 00h 的身份与基础特征；
+- Page 01h 的能力与 Supported Pages Advertising；
+- Page 02h 的 Module/Lane Threshold；
+- Page 03h–05h 的可选用途；
+- Page 00h–02h 的只读边界与 Page 03h 的 Host-writable 属性；
+- Optional Page 必须经过“发现支持 → 选择 → 等待 Remapping → 访问”的流程。
+
+典型 Host 查询与可选写入流程：
+
+```text
+Page 00h：读取 Vendor / Part Number 等身份信息
+→ Page 01h：读取 Application、Supported Pages 等能力广告
+→ Page 02h：读取模块定义的 Module/Lane Threshold
+→ 若 Page 01h 广告支持 Page 03h：
+   选择 Page 03h → 等待 Remapping → 按 EEPROM 约束写入用户数据
+```
+
+注意：读取 Application 支持和检查 Page 03h 支持都使用 Page 01h，但读取的是不同能力广告字段；不能因为二者位于同一页而把任务混成一个答案。
+
+## 8.11 自测
 
 1. Vendor Name、Application Advertisement、温度阈值分别在哪个 Page？
 2. Host 资产标签、可调激光器能力、封装专用信号分别在哪个 Page？
@@ -987,6 +1031,414 @@ Page 04h 是能力广告页 ≠ 实时调谐命令页
 </ol>
 
 </details>
+---
+
+# M9 Lane/Data Path 控制与状态（学习中）
+
+## M9.0 本章首次出现的术语
+
+| 术语 | 全称 | 中文含义 | 在本章中的用途 |
+|---|---|---|---|
+| `DPSM` | Data Path State Machine | 数据路径状态机 | 描述一个 Data Path 从停用、初始化到正常运行的生命周期 |
+| `Tx` | Transmit / Transmitter | 发送 / 发射端 | 描述从模块向外发送信号的方向或电路 |
+| `Rx` | Receive / Receiver | 接收 / 接收端 | 描述模块接收外部信号的方向或电路 |
+| `LOS` | Loss Of Signal | 信号丢失 | 表示接收端未检测到满足条件的有效输入信号 |
+| `squelch` | 非缩略词 | 静默/抑制输出 | 输入异常时暂时关闭或保持输出安静，避免传播无效数据或噪声 |
+| `OutputDisableTx` | Tx Output Disable control | 发送输出禁用控制 | Host 主动要求关闭指定 Media Lane 的 Tx 输出 |
+| `OutputSquelchForceTx` | Tx Output Force Squelch control | 强制发送输出静默控制 | Host 主动要求指定 Media Lane 的 Tx 输出保持静默 |
+| `DPDeactivateS` | Data Path Deactivate Signal | 数据路径停用条件信号 | DPSM 内部使用的逻辑条件；为真时推动 Data Path 离开运行状态 |
+
+这里的 `Host` 是管理光模块的主机系统或管理控制器；`Media Lane` 是模块面向光纤/网络介质一侧的高速通道。`S` 在 `DPDeactivateS` 中表示规范状态机模型里的 **Signal（条件信号）**，不是 Host 直接读写的单一寄存器字段。
+
+### DPSM 的四个核心状态
+
+| 状态 | 全称 | 含义与用途 |
+|---|---|---|
+| `DPDeactivated` | Data Path Deactivated | 数据路径已停用；可配置或重配置，关联 Tx Media Lane 输出保持静默 |
+| `DPInit` | Data Path Initialization | 数据路径初始化；模块把已选 Application 和信号完整性参数落实到硬件，是暂态 |
+| `DPInitialized` | Data Path Initialized | 数据路径硬件资源已初始化，但 Tx 输出尚未处于正常发送状态 |
+| `DPActivated` | Data Path Activated | 数据路径已激活；正常情况下关联 Tx 输出已经进入可运行状态 |
+
+本章后面还会出现 `DPTxTurnOn`（Data Path Tx Turn On，数据路径发送开启过程）和 `DPTxTurnOff`（Data Path Tx Turn Off，数据路径发送关闭过程）。它们是输出切换期间的暂态，不是长期稳定工作状态。
+
+一句话预览：
+
+```text
+DPDeactivated：尚未启用
+DPInit：正在初始化硬件
+DPInitialized：硬件准备好，但发送未开启
+DPActivated：正常运行
+```
+
+本模块将连接前面三个知识层次：
+
+```text
+M4：Application Instance / Data Path 是什么
+→ M5：如何通过 Control Set 配置 Data Path
+→ M9：如何观察和控制 Data Path 及各 Lane 的运行状态
+```
+
+后续重点：
+
+- 区分 Data Path 整体状态与单 Lane Tx/Rx 状态；
+- Page 10h/11h 的控制、状态与 Flag；
+- Page 18h/19h 的 Active Control Set 与 Staged Control Set；
+- 从配置请求到硬件状态变化的 FW 调试链路。
+
+## M9.1 配置、Data Path 状态与 Lane 状态
+
+三者观察的是不同层次：
+
+| 层次 | 回答的问题 | 示例 |
+|---|---|---|
+| Data Path 配置 | 这个 Data Path 应当实现什么 | AppSelCode、DataPathID、SI 参数 |
+| DPSM 状态 | 整个 Data Path 目前处于哪个生命周期阶段 | DPDeactivated、DPInit、DPInitialized、DPActivated |
+| Lane 控制/状态 | 某条 Host/Media Lane 当前如何 | Tx Disable、Tx Squelch、LOS、输出状态 |
+
+可以记成：
+
+```text
+配置 = 目标
+DPSM = 整体生命周期
+Lane 状态 = 局部输入/输出现象
+```
+
+### 三层之间不是完全独立的
+
+当 Data Path 已处于 `DPActivated` 时，如果 Host 对其中一条 Media Lane 设置 `OutputDisableTx` 或 `OutputSquelchForceTx`：
+
+```text
+单 Lane 控制变化
+→ 形成 Data Path deactivation 条件
+→ 整个 Data Path 离开 DPActivated
+→ Tx outputs 关闭
+→ Data Path 进入 DPInitialized
+```
+
+因此，下列长期稳定组合通常不成立：
+
+```text
+Data Path = DPActivated
+并且
+某条关联 Media Lane 被 Host 主动设置 OutputDisableTx
+```
+
+但需要区分 **Host 主动 Disable/Force Squelch** 与 **自动 Squelch**：外部 Tx LOS 等输入条件可能自动静默某条输出，而 Data Path 仍报告 `DPActivated`。所以 FW 调试时不能只看 DPSM，也不能只看某一个 Lane bit，必须联合观察触发源、控制位和输出状态。
+
+### 用“谁下的命令”判断是否改变 DPSM
+
+```text
+Host 主动写 OutputDisableTx / OutputSquelchForceTx
+→ Host 要求关联 Tx 输出保持关闭
+→ 形成 DPDeactivateS
+→ 整个 Data Path：DPActivated → DPTxTurnOff → DPInitialized
+```
+
+```text
+外部输入出现 LOS
+→ 模块按自动 squelch 规则暂时静默输出
+→ Host 没有要求撤销 Data Path 的 Activated 配置
+→ Data Path 可以继续报告 DPActivated
+```
+
+记忆方法：
+
+```text
+Host Disable = 改变运行意图，因此驱动状态机
+LOS Auto Squelch = 保护当前运行，因此不必改变状态机
+```
+
+这里的“不必”很重要：它表示不能仅凭“某 Lane 没有输出”就推断 DPSM 一定已经离开 `DPActivated`。FW 应联合检查 `DataPathState`、Host Tx 控制位、LOS 条件及实际输出状态。
+
+## M9.2 起点自测
+
+一个四 Lane Data Path 当前为 `DPActivated`。Host 将其 Media Lane 2 的 `OutputDisableTx` 置位。判断：
+
+1. 这只是 Lane 2 的局部变化，Data Path 可以长期保持 `DPActivated` 吗？
+2. 如果 Lane 2 是因外部 LOS 被自动 squelch，结论是否完全相同？
+
+<details>
+<summary><strong>参考答案与解析</strong></summary>
+<ol>
+<li><p>不能。Host 设置关联 Media Lane 的 <code>OutputDisableTx</code> 会形成 Data Path 的 deactivation 条件，使整个 Data Path 离开 <code>DPActivated</code>，经过 Tx turn-off 并进入 <code>DPInitialized</code>。它不是与 DPSM 无关的永久局部状态。</p></li>
+<li><p>不完全相同。外部 LOS 可能触发自动 squelch，使输出暂时静默，但规范允许 Data Path 仍处于 <code>DPActivated</code>。调试时要区分 Host 控制位与输入条件触发的自动输出行为。</p></li>
+</ol>
+</details>
+
+### M9.2 复测结论
+
+已经确认：
+
+```text
+Host 设置 OutputDisableTx
+→ 改变 Data Path 的运行意图
+→ 整个 Data Path 离开 DPActivated
+→ 最终进入 DPInitialized
+```
+
+```text
+LOS 引发自动 squelch
+→ 是运行期间的保护行为
+→ Data Path 不一定离开 DPActivated
+```
+
+判断的关键不是“某条 Lane 当前有没有输出”，而是：**输出静默是 Host 主动控制造成的，还是模块根据输入异常自动采取的保护行为。**
+
+## M9.3 DPSM 的正常激活主路径
+
+首次出现的两个术语：
+
+- **Steady State（稳态）**：模块可以在条件不变时持续停留的状态。例如 `DPDeactivated`、`DPInitialized` 和 `DPActivated`。
+- **Transient State（暂态/过渡态）**：为了完成某项动作而短暂停留的状态，必须具有完成、超时或故障出口。例如 `DPInit` 和 `DPTxTurnOn`。
+
+Data Path 从停用到正常运行的简化主路径为：
+
+```text
+DPDeactivated
+→ DPInit
+→ DPInitialized
+→ DPTxTurnOn
+→ DPActivated
+```
+
+各状态的工程含义：
+
+| 状态 | 类型 | Firmware 观察重点 |
+|---|---|---|
+| `DPDeactivated` | 稳态 | Data Path 停用；可以配置或重配置，Tx 输出保持静默 |
+| `DPInit` | 暂态 | 模块正在把 Application 和信号完整性配置落实到硬件；Host 应监控完成时间 |
+| `DPInitialized` | 稳态 | 硬件资源已初始化，但 Tx 输出仍被关闭或静默 |
+| `DPTxTurnOn` | 暂态 | 模块正在开启该 Data Path 关联的全部 Tx 输出 |
+| `DPActivated` | 稳态 | Data Path 正常运行；正常情况下关联 Tx 输出可工作 |
+
+为什么 `DPInitialized` 不是 `DPActivated`：
+
+```text
+DPInitialized = 内部资源准备完成
+DPActivated   = 内部资源准备完成 + 发送输出已开启
+```
+
+这一区分允许 Host 先完成硬件初始化，再决定何时使发送输出进入业务运行状态。
+
+### M9.3 阶段检查
+
+- 已正确识别稳态：`DPDeactivated`、`DPInitialized`、`DPActivated`。
+- 已正确识别暂态：`DPInit`、`DPTxTurnOn`。
+- 已正确排列从停用到正常运行的完整主路径：
+
+```text
+DPDeactivated → DPInit → DPInitialized → DPTxTurnOn → DPActivated
+```
+
+## M9.4 DPSM 的正常停用路径
+
+新术语：
+
+- **`DPDeinit` = Data Path Deinitialization，数据路径去初始化。** 模块在这个暂态中撤销或释放该 Data Path 已经初始化的硬件资源，使其回到可重新配置的停用状态。
+
+从正常运行到完全停用的简化路径为：
+
+```text
+DPActivated
+→ DPTxTurnOff
+→ DPInitialized
+→ DPDeinit
+→ DPDeactivated
+```
+
+各步骤含义：
+
+| 状态 | 类型 | 含义 |
+|---|---|---|
+| `DPActivated` | 稳态 | Data Path 正常运行，Tx 输出已开启 |
+| `DPTxTurnOff` | 暂态 | 模块正在关闭关联的 Tx 输出 |
+| `DPInitialized` | 稳态 | Tx 输出已关闭，但内部硬件资源仍保持初始化 |
+| `DPDeinit` | 暂态 | 模块正在撤销或释放初始化资源 |
+| `DPDeactivated` | 稳态 | Data Path 已完全停用，可以配置或重配置 |
+
+为什么停用过程必须经过 `DPInitialized`：
+
+```text
+先停止对外发送
+→ 再撤销内部硬件资源
+```
+
+这使“关闭业务输出”和“释放内部资源”成为两个可区分的阶段，有利于安全切换和 Firmware 调试。
+
+### M9.4 阶段检查
+
+已正确排列正常停用路径：
+
+```text
+DPActivated → DPTxTurnOff → DPInitialized → DPDeinit → DPDeactivated
+```
+
+并已掌握：
+
+```text
+DPTxTurnOff = 关闭对外 Tx 输出
+DPDeinit    = 撤销内部初始化资源
+```
+
+## M9.5 完整循环与暂态监控
+
+将激活和停用路径合并：
+
+```text
+DPDeactivated
+→ DPInit
+→ DPInitialized
+→ DPTxTurnOn
+→ DPActivated
+→ DPTxTurnOff
+→ DPInitialized
+→ DPDeinit
+→ DPDeactivated
+```
+
+### Firmware 为什么必须监控暂态
+
+下列状态都是 **Transient State（暂态）**：
+
+- `DPInit`：正在初始化内部硬件资源；
+- `DPTxTurnOn`：正在开启关联 Tx 输出；
+- `DPTxTurnOff`：正在关闭关联 Tx 输出；
+- `DPDeinit`：正在撤销内部硬件资源。
+
+暂态表示“动作正在进行”，不是“动作已经成功”。因此 Firmware 不能只发出请求后固定延时一次，就假设操作完成。基本监控模型应为：
+
+```text
+发出控制请求
+→ 轮询 DataPathState
+→ 若到达目标稳态：成功
+→ 若仍在暂态且未超时：继续等待
+→ 若超过模块广告的最大持续时间：记录超时并进入错误恢复
+```
+
+这里的 **timeout（超时）** 是指状态停留时间超过允许或广告的最大持续时间。它说明硬件动作没有按预期完成，不能当成普通“还在忙”而无限等待。
+
+Firmware 调试时至少应记录：
+
+- 起始状态和目标状态；
+- 发出的控制请求；
+- 每次读到的 `DataPathState`；
+- 已等待时间和最大允许时间；
+- 相关 Lane 的 Disable、LOS 和输出状态。
+
+### M9.5 阶段检查
+
+对于进入 `DPInit` 后超过模块广告最大持续时间的场景，已正确判断：
+
+```text
+不能无限等待
+不能因为已进入 DPInit 就报告激活成功
+必须判定 timeout，保存诊断上下文并进入错误恢复
+```
+
+这里体现了 Firmware 状态机实现的核心规则：**暂态必须有正常完成出口、超时出口或故障出口。**
+
+## M9.6 Page 11h：Lane 与 Data Path 状态观测
+
+首次出现的术语：
+
+- **Lane Status**：通道状态，描述各条高速 Lane 的输出有效性、Flag 和监测量等动态信息。
+- **Data Path Status**：数据路径状态，描述各 Lane 所属 DPSM 当前处于哪个状态。
+- **RO = Read Only，只读。** Host 可以读取字段，但不能通过写这些字段直接修改状态。
+- **Banked Page，分 Bank 页面。** 同一个 Page 地址可通过 `BankSelect` 选择不同 Bank；每个 Bank 保存另一组同类对象的数据。
+
+Page 11h 的正式用途是：
+
+```text
+Banked Page 11h
+= Lane Status and Data Path Status
+= 通道动态状态与数据路径状态观测页
+```
+
+关键属性：
+
+- Page 11h 的字段全部是只读动态状态；
+- Page 11h 可以采用 Bank；每个 Bank 对应一组 8 条 Lane；
+- Byte 128–131 保存 Lane-associated Data Path States；
+- 每条 Host Lane 使用 4 bit（一个 nibble，半字节）编码其所属 Data Path 的状态；
+- Data Path 状态作用于 Host 与 Media 两侧，但状态字段按 Host Lane 报告；
+- 同一个多 Lane Data Path 的所有关联 Host Lane必须报告相同状态；
+- 未加入任何 Data Path 的 Lane 报告 `DPDeactivated`，表示该 Lane 上没有已初始化的数据路径。
+
+这里的 **nibble（半字节）** 是 4 bit。一个 8 bit Byte 可以保存两条 Host Lane 的状态：
+
+```text
+Byte 128 bits 3–0：Host Lane 1 的 Data Path 状态
+Byte 128 bits 7–4：Host Lane 2 的 Data Path 状态
+```
+
+状态编码：
+
+| 编码 | 状态 |
+|---|---|
+| `1h` | `DPDeactivated`，或该 Lane 未使用 |
+| `2h` | `DPInit` |
+| `3h` | `DPDeinit` |
+| `4h` | `DPActivated` |
+| `5h` | `DPTxTurnOn` |
+| `6h` | `DPTxTurnOff` |
+| `7h` | `DPInitialized` |
+
+Firmware 读取一个跨 Lane Data Path 时，不应只读取其中一条 Lane 就结束。应检查其所有关联 Host Lane 是否报告一致状态；若同一 Data Path 的 Lane 状态不一致，应记录为异常快照，并结合配置状态与 Lane 条件继续诊断。
+
+### M9.6 阶段检查
+
+给定 Host Lane 1–4 均报告编码 `4h`，已正确判断：
+
+```text
+4h = DPActivated
+四条关联 Lane 状态一致
+整个 Data Path 处于正常激活状态
+```
+
+这说明状态判断包含两步：
+
+```text
+先解码每条 Host Lane 的 4-bit 状态值
+→ 再检查同一 Data Path 的所有关联 Lane 是否一致
+```
+
+## M9.7 Lane 状态不一致时的诊断
+
+首次出现的术语：
+
+- **Snapshot（快照）**：Firmware 在某个时间窗口内采集的一组相关寄存器值，用于保留当时的系统状态以便诊断。
+- **Atomic Read（原子读取）**：相关数据仿佛在同一时刻被完整读取，不会混合读取前后的两个状态。
+- **Race Condition（竞态条件）**：系统状态正在变化，而 Firmware 分多次读取相关字段，导致结果取决于读取时机，可能拼出一个实际上从未同时存在过的组合。
+
+Page 11h 的 Lane 状态不一致有两类可能：
+
+1. **真实不一致**：模块没有按规范为同一多 Lane Data Path 报告相同状态，或内部状态出现异常。
+2. **读取期间发生状态转移**：Firmware 分多次读取时，Data Path 恰好从一个状态切换到另一个状态，第一次读取包含旧值，后一次读取包含新值。
+
+因此，看到不一致时不应立刻修改控制字段，也不应任选一条 Lane 作为最终状态。推荐流程：
+
+```text
+发现同一 Data Path 的 Lane 状态不一致
+→ 立即保存第一次读取快照和时间戳
+→ 短暂等待后重新读取完整的相关状态 Byte
+→ 若第二次一致：可能是读取时遇到状态转移
+→ 若持续不一致：记录为模块状态异常并继续读取配置状态、Lane 条件和 Flag
+```
+
+这里的 **timestamp（时间戳）** 是采样发生的时间记录，用于判断两次状态之间相隔多久以及是否超过允许的暂态时间。
+
+### M9.7 当前恢复点
+
+上午课程暂停，下午从以下场景继续；该题尚未作答，不计入累计提问：
+
+```text
+同一四 Lane Data Path 正在初始化：
+Lane 1–2 = DPInit
+Lane 3–4 = DPInitialized
+```
+
+需要判断 Firmware 的第一步处理：任选一条 Lane、立即重配置，还是保存快照和时间戳后完整重读，以区分读取竞态与真实异常。
+
 ---
 
 # 9. M1–M8 跨模块串联

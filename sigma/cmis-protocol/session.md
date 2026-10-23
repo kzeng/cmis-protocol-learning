@@ -5,16 +5,17 @@
 - **学习目标**: 光模块 Firmware 开发
 - **时间投入**: 5 天/周 × 2 小时 = 10 小时/周
 - **会话语言**: zh（技术术语保留英文）
+- **术语教学规则**: 技术术语第一次出现时必须先解释；缩略词须给出英文全称、中文含义、用途/所属层次，必要时说明与相近术语的区别。不得在未定义前直接用缩略词讲解或出题。
 - **教材**: `OIF-CMIS-05.3-changebars.pdf`（408 页，Rev 5.3, 2024-09）
 - **方法**: Bloom 2-Sigma 掌握学习 — 概念掌握度 ≥80% 才进入下一概念
 
 ## 总体进度 (Overall)
-- **已掌握**: 7 / 16 概念 (47% 综合进度)
-- **当前概念**: M8 管理页：Page 00h-05h
-- **当前周次**: Week 5 / 10
-- **累计提问**: 87 轮
-- **会话状态**: paused
-- **恢复入口**: M8 Optional Page 访问顺序：先查 Page 01h 支持广告，再选择 Page 03h 并等待 Remapping，最后写 User EEPROM
+- **已掌握**: 8 / 16 概念 (50% 综合进度)
+- **当前概念**: M9 Lane/Data Path 控制与状态
+- **当前周次**: Week 6 / 10
+- **累计提问**: 99 轮
+- **会话状态**: paused（上午课程结束，下午继续）
+- **恢复入口**: M9 Page 11h 一致性诊断场景题：Lane 1–2=DPInit、Lane 3–4=DPInitialized 时，先保存快照和时间戳并完整重读，再区分读取竞态与真实异常
 
 ## 概念清单与掌握度 (Concepts)
 
@@ -27,8 +28,8 @@
 | M5 | Control Set 与配置流程 | §6.2.3-6.2.4, App D/E | 6h | mastered | 92% |
 | M6 | 模块状态机 MSM ⭐ | §6.3 | 8h | mastered | 96% |
 | M7 | 内存映射机制：Lower Memory 与分页/Banked | §8.1-8.2 | 5h | mastered | 92% |
-| M8 | 管理页：Page 00h-05h | §8.3-8.8 | 5h | in-progress | 52% |
-| M9 | Lane/Datapath 控制与状态 10h/11h/18h/19h | §8.9-8.10, §8.17-8.18 | 6h | not-started | 0% |
+| M8 | 管理页：Page 00h-05h | §8.3-8.8 | 5h | mastered | 92% |
+| M9 | Lane/Datapath 控制与状态 10h/11h/18h/19h | §8.9-8.10, §8.17-8.18 | 6h | in-progress | 70% |
 | M10 | 诊断：VDM 与性能页 13h/14h | §7.1, §8.12-8.13, §8.22 | 6h | not-started | 0% |
 | M11 | CDB 消息机制 | §7.2, §8.23-8.24, §9.1-9.2 | 5h | not-started | 0% |
 | M12 | CDB 命令组精讲（含固件管理） | §9.3-9.12 | 8h | not-started | 0% |
@@ -165,3 +166,18 @@
 - **M8 Round 2（Page 00h–02h 映射）**: 正确将厂商/料号验证映射到 Page 00h，将 Application/Lane Assignment 能力映射到 Page 01h，将温度 High Alarm Threshold 映射到 Page 02h。M8=35%。
 - **M8 Round 3（Page 03h–05h 映射）**: 正确将 Host 资产标签写入映射到 Page 03h User EEPROM，将可调激光器能力/Channel 范围映射到 Page 04h，将 Form-Factor-specific 管理信号映射到 Page 05h。M8=52%。
 - **2026-10-22 · Session Pause**: 学习者结束今日课程。已掌握 M1–M7；M8 当前 52%。下次从 Optional Page 访问顺序 B→C→A 及“不先检查支持可能映射回 Page 00h”的原因继续；该题尚未作答，不增加提问轮次。
+- **2026-10-23 · Session Resume**: 恢复 M8（52%），从 Optional Page 03h 的发现、选择、等待 Remapping、访问顺序继续。已确认 `review-notes.md` 覆盖上一轮内容。
+- **M8 Round 4（Optional Page 访问流程）**: 正确排序 B→C→A：先从 Page 01h 确认 Page 03h 支持，再选择 Page 03h 并等待 Remapping，最后写 User EEPROM；正确说明不能跳过支持检查和映射等待。需精确化：Remapping 未完成时访问可能仍指向旧 Page，模块应拒绝可能造成 stale/wrong-page access 的操作，而不只是笼统地“写不成功”。M8=65%。
+- **M8 Round 5（页面读写属性）**: 正确判断 Page 00h Vendor Name 与 Page 02h Threshold 为只读，Host 不可修改；正确指出 Page 03h 写入前需确认支持并完成页面选择/Remapping。需精确化：题设已确认支持时，Page 03h 本身是 Host-writable，完成映射并满足 EEPROM 写时序后可以写入。M8=78%，进入综合验收。
+- **M8 Round 6（综合验收部分通过）**: 正确回答 Vendor Name 位于 Page 00h，并正确描述 Page 03h 的支持检查、选择/Remapping 等待及 EEPROM 写周期/范围要求；但漏答 Application 支持应查 Page 01h、温度 High Alarm Threshold 应查 Page 02h。M8=82%，针对遗漏项补测。
+- **M8 Round 7（遗漏项补测）**: 正确回答 Application Advertising 位于 Page 01h，温度 High Alarm Threshold 位于 Page 02h。已稳定掌握 Page 00h–05h 的用途、支持属性、RO/RW 边界及 Optional Page 访问流程。M8=92%，状态 mastered；进入 M9。
+- **M9 Round 1（三层模型起点诊断）**: 正确区分 A 为 Data Path 配置，B 为 Data Path 整体状态，C 为单 Lane Tx 控制/输出状态。补充关键耦合边界：在 DPActivated 设置某一 Media Lane 的 Host OutputDisableTx/Force Squelch，会使整个 Data Path 转向 DPInitialized；外部 LOS 引发的自动 squelch 则可能不改变 DPActivated。M9=18%。
+- **M9 Round 2（Lane 控制与 DPSM 耦合暴露）**: 对 Host OutputDisableTx 和 LOS 自动 squelch 是否导致 DPActivated 退出均回答“不知道”。确认当前缺口不在三层分类，而在触发源与 DPSM 转移的因果关系。重新讲解：Host Disable/Force Squelch 形成 deactivation 条件，整个 Data Path 经 DPTxTurnOff 进入 DPInitialized；LOS 自动 squelch 是运行中的输出保护行为，不必退出 DPActivated。M9 保持 18%，立即复测。
+- **教学规则调整（2026-10-23）**: 学习者指出未解释的术语/缩略词会妨碍理解。后续所有新术语首次出现时，按“英文全称 → 中文含义 → 用途/所属层次 → 必要的相近概念辨析”介绍；本轮补齐 M9 已出现术语后再复测，上一道未作答复测不计轮次。
+- **M9 Round 3（Lane/DPSM 耦合复测）**: 两题均正确：Host 设置 OutputDisableTx 会使整个 Data Path 离开 DPActivated 并最终进入 DPInitialized；外部 LOS 导致的自动 squelch 不一定改变 DPSM，Data Path 可以继续处于 DPActivated。已掌握“运行意图变化”与“运行中保护行为”的区别。M9=30%，进入 DPSM 主路径。
+- **M9 Round 4（DPSM 状态类型）**: 正确分类稳态为 DPActivated、DPDeactivated、DPInitialized（A/C/E），暂态为 DPInit、DPTxTurnOn（B/D）。题目要求的正常激活顺序尚未回答，需单独补测。M9=36%。
+- **M9 Round 5（DPSM 激活顺序补测）**: 正确排列 C→B→E→D→A，即 DPDeactivated → DPInit → DPInitialized → DPTxTurnOn → DPActivated。已掌握正常激活主路径及稳态/暂态分类。M9=45%，进入正常停用路径。
+- **M9 Round 6（DPSM 停用顺序）**: 正确排列 D→E→C→B→A，即 DPActivated → DPTxTurnOff → DPInitialized → DPDeinit → DPDeactivated。已理解先关闭对外 Tx 输出，再撤销内部硬件资源。M9=55%，进入暂态完成与超时监控。
+- **M9 Round 7（暂态超时处理）**: 正确选择 C：DPInit 停留超过模块广告的最大持续时间时，不能无限等待或视为成功；Firmware 应判定初始化超时，记录状态、时长及相关 Lane 信息，并进入错误恢复。M9=63%，进入 Page 11h 的 DataPathState 状态观测。
+- **M9 Round 8（Page 11h 状态解码）**: 正确将四条 Host Lane 的编码 4h 解码为 DPActivated，并判断四条 Lane 状态一致、整个 Data Path 处于正常激活状态。已掌握 Page 11h 的基本状态编码与多 Lane 一致性判断。M9=70%，进入不一致状态诊断。
+- **Session Pause（上午）**: 学习者暂停课程，下午继续。M9 当前 70%；已讲解 Snapshot、Atomic Read、Race Condition 与 Timestamp。恢复时先回答尚未计轮次的场景题：同一 Data Path 的 Lane 状态不一致时，应保存快照和时间戳、短暂等待并完整重读，而不是任选一条 Lane 或立即重配置。
