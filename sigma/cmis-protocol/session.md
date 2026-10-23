@@ -10,12 +10,12 @@
 - **方法**: Bloom 2-Sigma 掌握学习 — 概念掌握度 ≥80% 才进入下一概念
 
 ## 总体进度 (Overall)
-- **已掌握**: 8 / 16 概念 (50% 综合进度)
-- **当前概念**: M9 Lane/Data Path 控制与状态
-- **当前周次**: Week 6 / 10
-- **累计提问**: 99 轮
-- **会话状态**: paused（上午课程结束，下午继续）
-- **恢复入口**: M9 Page 11h 一致性诊断场景题：Lane 1–2=DPInit、Lane 3–4=DPInitialized 时，先保存快照和时间戳并完整重读，再区分读取竞态与真实异常
+- **已掌握**: 9 / 16 概念 (57% 综合进度)
+- **当前概念**: M10 诊断：VDM 与性能页
+- **当前周次**: Week 7 / 10
+- **累计提问**: 104 轮
+- **会话状态**: paused（今日课程结束）
+- **恢复入口**: M10 VDM Descriptor 场景题：读取 BER 前先遍历 Descriptor Array，定位 Observable 类型为 BER 的 Active Instance，再读取对应 Sample
 
 ## 概念清单与掌握度 (Concepts)
 
@@ -29,8 +29,8 @@
 | M6 | 模块状态机 MSM ⭐ | §6.3 | 8h | mastered | 96% |
 | M7 | 内存映射机制：Lower Memory 与分页/Banked | §8.1-8.2 | 5h | mastered | 92% |
 | M8 | 管理页：Page 00h-05h | §8.3-8.8 | 5h | mastered | 92% |
-| M9 | Lane/Datapath 控制与状态 10h/11h/18h/19h | §8.9-8.10, §8.17-8.18 | 6h | in-progress | 70% |
-| M10 | 诊断：VDM 与性能页 13h/14h | §7.1, §8.12-8.13, §8.22 | 6h | not-started | 0% |
+| M9 | Lane/Datapath 控制与状态 10h/11h/18h/19h | §8.9-8.10, §8.17-8.18 | 6h | mastered | 92% |
+| M10 | 诊断：VDM 与性能页 13h/14h | §7.1, §8.12-8.13, §8.22 | 6h | in-progress | 18% |
 | M11 | CDB 消息机制 | §7.2, §8.23-8.24, §9.1-9.2 | 5h | not-started | 0% |
 | M12 | CDB 命令组精讲（含固件管理） | §9.3-9.12 | 8h | not-started | 0% |
 | M13 | 高级特性：MBR/可调激光器/热重构等 | §7.3-7.8 | 6h | not-started | 0% |
@@ -181,3 +181,10 @@
 - **M9 Round 7（暂态超时处理）**: 正确选择 C：DPInit 停留超过模块广告的最大持续时间时，不能无限等待或视为成功；Firmware 应判定初始化超时，记录状态、时长及相关 Lane 信息，并进入错误恢复。M9=63%，进入 Page 11h 的 DataPathState 状态观测。
 - **M9 Round 8（Page 11h 状态解码）**: 正确将四条 Host Lane 的编码 4h 解码为 DPActivated，并判断四条 Lane 状态一致、整个 Data Path 处于正常激活状态。已掌握 Page 11h 的基本状态编码与多 Lane 一致性判断。M9=70%，进入不一致状态诊断。
 - **Session Pause（上午）**: 学习者暂停课程，下午继续。M9 当前 70%；已讲解 Snapshot、Atomic Read、Race Condition 与 Timestamp。恢复时先回答尚未计轮次的场景题：同一 Data Path 的 Lane 状态不一致时，应保存快照和时间戳、短暂等待并完整重读，而不是任选一条 Lane 或立即重配置。
+- **Session Resume（下午）**: 恢复 M9（70%），从 Page 11h 的多 Lane 状态不一致诊断题继续；该题此前尚未作答，仍不增加累计提问轮次。
+- **M9 Round 9（多 Lane 状态不一致诊断）**: 正确选择 C：先保存快照和时间戳，短暂等待后完整重读所有关联 Lane，以区分读取期间发生状态转移造成的竞态与持续的真实异常；不能任选一条 Lane，也不能立即重配置。M9=78%，进入 Page 11h Lane Output Status。
+- **M9 Round 10（DPSM 与 Output Status 联合判断暴露）**: 对 `DPActivated + OutputStatusTx3=0 + Host 未 Disable + 相关输入 LOS` 场景回答“不知道”。确认缺口：尚未稳定区分生命周期状态、实际输出状态与导致输出无效的原因。重新讲解三层诊断：DPSM 仍可为 DPActivated；OutputStatusTx3=0 仅表示 Lane 3 当前未输出有效信号；在无 Host Disable 且存在 LOS 时，最可能是 LOS 触发自动 squelch。M9 保持 78%，立即复测。
+- **M9 Round 11（DPSM 与 Output Status 联合判断复测）**: 正确选择 B：Data Path 可以继续处于 DPActivated，而 Lane 3 因相关输入 LOS 被自动 squelch，故 OutputStatusTx3=0。已掌握生命周期状态、实际输出状态与原因条件的三层诊断。M9=84%，达到掌握门槛；继续完成 Page 10h/11h 控制—状态闭环后再做综合验收。
+- **M9 Round 12（Page 10h/11h 闭环验收）**: 正确选择 B：对使用 Host Lane 1–4 的 Data Path，应将关联 Lane 的 DPDeinit 请求全部设为 1，再轮询 Page 11h 并确认所有关联 Lane 最终一致报告 DPDeactivated。正确排除“只写一条 Lane”和“直接写只读 Page 11h 状态”的错误做法。M9=92%，状态 mastered；进入 M10。
+- **M10 Round 1（诊断信息分类）**: 正确分类当前温度为 Sample、High Alarm Threshold 为 Threshold、High Alarm Flag 为 Flag、统计区间内 BER 最大值为 Statistic。已掌握事实值、判断标准、判断结果和区间汇总的基本区别。M10=18%，进入 VDM Instance/Descriptor 发现机制。
+- **Session Pause（今日结束）**: 学习者结束今日课程。M1–M9 已掌握，M10 当前 18%；已讲解 VDM 全称与用途、Sample/Threshold/Flag/Statistic 分类，以及 VDM Instance/Descriptor 的模块自定义映射。下次先回答尚未计轮次的 BER 读取题：不能固定读取 Instance 1，必须先从 Descriptor Array 定位 BER 对应的 Active Instance。

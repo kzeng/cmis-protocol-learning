@@ -3,7 +3,7 @@
 > 教材：OIF-CMIS-05.3（Rev 5.3）  
 > 学习目标：面向光模块 Firmware 开发，建立从协议语义、管理访问、配置事务、状态机到 Memory Map 的完整心智模型。  
 > 文档性质：持续更新的长期复习资料。`session.md` 保存学习轨迹，本文件保存整理后的知识体系。  
-> 当前覆盖：M1–M8 已掌握；即将进入 M9 Lane/Data Path 控制与状态。
+> 当前覆盖：M1–M9 已掌握；即将进入 M10 VDM 与性能诊断。
 
 ---
 
@@ -1033,7 +1033,7 @@ Page 00h：读取 Vendor / Part Number 等身份信息
 </details>
 ---
 
-# M9 Lane/Data Path 控制与状态（学习中）
+# M9 Lane/Data Path 控制与状态
 
 ## M9.0 本章首次出现的术语
 
@@ -1429,7 +1429,7 @@ Page 11h 的 Lane 状态不一致有两类可能：
 
 ### M9.7 当前恢复点
 
-上午课程暂停，下午从以下场景继续；该题尚未作答，不计入累计提问：
+下午课程已恢复，从以下场景继续；该题尚未作答，不计入累计提问：
 
 ```text
 同一四 Lane Data Path 正在初始化：
@@ -1439,9 +1439,397 @@ Lane 3–4 = DPInitialized
 
 需要判断 Firmware 的第一步处理：任选一条 Lane、立即重配置，还是保存快照和时间戳后完整重读，以区分读取竞态与真实异常。
 
+### M9.7 阶段检查
+
+已正确选择保存快照和时间戳后完整重读：
+
+```text
+第一次不一致
+→ 保存现场
+→ 短暂等待并完整重读
+→ 第二次一致：可能是读取跨越了状态转移
+→ 持续不一致：按模块状态异常继续诊断
+```
+
+这体现了诊断原则：**先确认观测结果是否稳定，再采取会改变模块状态的恢复动作。**
+
+## M9.8 Page 11h：Lane Output Status
+
+首次出现的字段：
+
+- **`OutputStatusRx` = Receive Output Status，接收方向输出状态。** 它表示模块是否正在 Host Lane 上向 Host 实际输出有效的 Rx 信号。
+- **`OutputStatusTx` = Transmit Output Status，发送方向输出状态。** 它表示模块是否正在 Media Lane 上实际输出有效的 Tx 信号。
+- **Valid，信号有效。** 表示模块正在该输出 Lane 上发送符合模块所能判断范围内的有效信号。
+- **Muted，输出已静默。** 表示输出当前被抑制，没有正常发送信号。
+
+Page 11h 中：
+
+| Byte | 字段 | 每个 bit 的含义 |
+|---|---|---|
+| 132 | `OutputStatusRx<i>` | `0b`：Rx 输出无效或静默；`1b`：Rx 输出有效 |
+| 133 | `OutputStatusTx<i>` | `0b`：Tx 输出无效或静默；`1b`：Tx 输出有效 |
+
+这里的 `<i>` 表示 Lane 编号，例如 `OutputStatusTx3` 表示 Media Lane 3 的 Tx 输出状态。
+
+### Output Status 与 DPSM State 的区别
+
+规范明确规定，`OutputStatusRx` 和 `OutputStatusTx` 报告实际高速输出状态，并且独立于关联 Lane 的 DPSM 状态。
+
+```text
+DPSM State
+= Data Path 处于哪个生命周期阶段
+
+OutputStatusTx / OutputStatusRx
+= 该条输出 Lane 此刻是否真的在发送有效信号
+```
+
+因此不能使用下面的错误推理：
+
+```text
+Data Path = DPActivated
+所以每条 OutputStatus 一定都是 1
+```
+
+例如外部输入发生 `LOS`（Loss Of Signal，信号丢失）时，模块可能自动 squelch 输出：
+
+```text
+Data Path State = DPActivated
+OutputStatusTx = 0
+```
+
+这表示 Data Path 生命周期仍处于已激活状态，但该 Lane 当前没有有效的实际 Tx 输出。Firmware 必须同时读取 DPSM State 和 Output Status，才能区分“Data Path 未激活”和“Data Path 已激活但输出因条件异常而无效”。
+
+### Rx 和 Tx 字段观察的物理方向
+
+```text
+OutputStatusRx：模块 → Host 的 Rx 输出是否有效
+OutputStatusTx：模块 → Media/光纤方向的 Tx 输出是否有效
+```
+
+`OutputStatusRx` 只有在模块实际能够向 Host 提供有效且稳定的信号时才置 1；该设计可避免模块过早声明输出有效而造成链路反复 Up/Down。
+
+### 用三层方法联合判断
+
+遇到输出无效时，按三层分别读取，不要把它们混成一个结论：
+
+```text
+第一层：生命周期状态
+Data Path State = DPActivated
+含义：Data Path 状态机仍处于已激活阶段
+
+第二层：实际输出状态
+OutputStatusTx3 = 0
+含义：Media Lane 3 此刻没有输出有效 Tx 信号
+
+第三层：输出无效的原因
+Host 未设置 OutputDisableTx3，同时相关输入存在 LOS
+含义：最可能是 LOS 触发模块自动 squelch，而非 Host 主动停用
+```
+
+所以完整结论是：
+
+```text
+Data Path 可以仍为 DPActivated
+但 Media Lane 3 因相关输入 LOS 被自动 squelch
+因此 OutputStatusTx3 = 0
+```
+
+`OutputStatusTx3=0` 只回答“现在有没有有效输出”，不能单独回答“Data Path 状态机在哪个状态”，也不能单独回答“为什么没有输出”。要确定原因，还需联合检查 Host Disable/Force Squelch 控制位、LOS 和其他 Lane 条件。
+
+常见错误：
+
+```text
+错误：OutputStatusTx = 0，所以 Data Path 一定不是 DPActivated
+正确：OutputStatusTx = 0，只能证明该 Lane 当前输出无效或静默
+```
+
+### M9.8 阶段检查
+
+对于以下组合：
+
+```text
+Data Path State = DPActivated
+OutputStatusTx3 = 0
+Host 未设置 OutputDisableTx3
+相关输入存在 LOS
+```
+
+已正确判断：Data Path 可以仍处于 `DPActivated`；Lane 3 最可能因为 LOS 触发自动 squelch 而没有有效输出。已经掌握三层诊断：
+
+```text
+DPSM State     → 生命周期阶段
+Output Status  → 此刻是否实际有效输出
+控制位/LOS     → 为什么输出有效或无效
+```
+
+## M9.9 Page 10h 与 Page 11h 的控制—状态闭环
+
+Page 10h 的正式用途是：
+
+```text
+Lane Control and Data Path Control
+通道控制与数据路径控制
+```
+
+它与 Page 11h 的职责不同：
+
+| Page | 核心职责 | 典型访问属性 |
+|---|---|---|
+| Page 10h | Host 提交 Lane/Data Path 控制请求 | 含 RW 控制字段 |
+| Page 11h | 模块报告 Lane/Data Path 动态状态 | 全部 RO |
+
+首次出现的访问属性：
+
+- **RW = Read/Write，可读写。** Host 可以读取当前设置，也可以写入新设置。
+- **Static Request，静态请求。** 控制位的当前电平持续表达 Host 的要求，不是写一次就自动清除的瞬时触发事件。
+- **Direct Effect Control，直接生效控制。** 这类字段直接控制 Lane 属性，不进入 Staged Control Set，也不是通过 Apply 操作统一提交。
+
+### Page 10h 的重要字段
+
+#### `DPDeinitLane<i>`
+
+**Data Path Deinitialization control for Host Lane `<i>`，Host Lane `<i>` 所属数据路径的去初始化控制。**
+
+Page 10h Byte 128：
+
+```text
+0b：请求初始化该 Host Lane 所属的 Data Path
+1b：请求去初始化该 Host Lane 所属的 Data Path
+```
+
+它是静态请求，不是一次性 Trigger（触发脉冲）。同一个 Data Path 的所有关联 Lane 必须写成相同值。
+
+#### `OutputDisableTx<i>`
+
+**Transmit Output Disable，发送输出禁用。** Page 10h Byte 130：
+
+```text
+0b：Media Lane <i> 的 Tx 输出启用
+1b：Media Lane <i> 的 Tx 输出禁用
+```
+
+它是 Host 可写的直接控制。对于已激活 Data Path，设置关联 Media Lane 的该控制位会影响整个 DPSM，而不只是形成一个与状态机无关的显示值。
+
+#### `AutoSquelchDisableTx<i>`
+
+**Automatic Tx Output Squelching Disable，自动 Tx 输出静默功能的禁用控制。** Page 10h Byte 131：
+
+```text
+0b：允许模块在输入异常时自动 squelch Tx 输出
+1b：禁用自动 Tx squelch 功能
+```
+
+注意双重否定：字段名是“自动静默禁用”。因此值为 `0` 表示自动静默功能启用，值为 `1` 才表示自动静默功能被禁用。
+
+#### `OutputSquelchForceTx<i>`
+
+**Tx Output Force Squelch，强制 Tx 输出静默。** Page 10h Byte 132：
+
+```text
+0b：不强制影响该 Tx 输出
+1b：强制该 Media Lane 的 Tx 输出保持静默
+```
+
+### Firmware 控制—验证流程
+
+```text
+先从能力广告确认控制字段是否受支持
+→ 在 Page 10h 写入控制请求
+→ 轮询 Page 11h 的 Data Path State
+→ 读取 Page 11h 的 OutputStatusTx/OutputStatusRx
+→ 联合检查 LOS、Flag 和控制位
+→ 判断请求是否产生预期结果
+```
+
+不能采用“Page 10h 写成功 = 硬件动作已经完成”的逻辑。寄存器写入成功只表示模块接收了控制值；实际动作是否完成，要通过 Page 11h 的状态和输出有效性验证。
+
+## M9.10 综合掌握结论
+
+已经掌握：
+
+- Data Path 配置、DPSM 生命周期状态和单 Lane 输出状态的层次区别；
+- `DPDeactivated → DPInit → DPInitialized → DPTxTurnOn → DPActivated` 激活路径；
+- `DPActivated → DPTxTurnOff → DPInitialized → DPDeinit → DPDeactivated` 停用路径；
+- 暂态完成、超时和错误恢复原则；
+- Page 11h 的 Data Path State 编码与多 Lane 一致性检查；
+- `OutputStatusTx` / `OutputStatusRx` 与 DPSM State 的区别；
+- Page 10h 提交控制、Page 11h 验证结果的 Firmware 闭环。
+
+## M9.11 综合自测
+
+1. `DPInitialized` 和 `DPActivated` 的核心区别是什么？
+2. 为什么 `OutputStatusTx=0` 不能单独证明 Data Path 已离开 `DPActivated`？
+3. 四 Lane Data Path 完全停用时，为什么不能只设置其中一个 `DPDeinitLane`？
+4. Page 10h 写成功后，Firmware 为什么还必须读取 Page 11h？
+
+<details>
+<summary><strong>参考答案与解析</strong></summary>
+<ol>
+<li><p><code>DPInitialized</code> 表示内部硬件资源已经初始化，但 Tx 输出尚未正常开启；<code>DPActivated</code> 表示 Data Path 已进入运行阶段，正常情况下关联 Tx 输出已经开启。</p></li>
+<li><p><code>OutputStatusTx</code> 描述该 Lane 此刻是否实际输出有效信号，而 DPSM State 描述整个 Data Path 的生命周期阶段。LOS 引发的自动 squelch 可使 <code>OutputStatusTx=0</code>，同时 Data Path 仍处于 <code>DPActivated</code>。</p></li>
+<li><p><code>DPDeinitLane</code> 是关联 Data Path 的静态请求。同一 Data Path 的所有关联 Lane 必须写成相同值，否则请求不一致，不符合多 Lane Data Path 的控制规则。</p></li>
+<li><p>Page 10h 写成功只表示模块接收了控制值，不表示硬件动作已经完成。Firmware 必须从只读 Page 11h 轮询 Data Path State 和 Output Status，确认所有关联 Lane 到达预期状态。</p></li>
+</ol>
+</details>
+
 ---
 
-# 9. M1–M8 跨模块串联
+# M10 VDM 与性能诊断（学习中）
+
+本模块将区分四类容易混淆的诊断信息：
+
+```text
+实时 Monitor：现在测到多少
+Threshold：什么数值算异常
+Flag：是否发生或检测到异常条件
+VDM/性能观测：一段运行过程的质量或统计表现
+```
+
+新术语将在首次进入具体内容时逐一解释。
+
+## M10.1 VDM 的定义与用途
+
+**VDM = Versatile Diagnostics Monitoring，多用途诊断监测。**
+
+VDM 是 CMIS 的 Optional Feature（可选功能），用于扩展模块的性能与诊断监测能力，主要扩展两个方面：
+
+1. **更多 Observable（可观测量）**：增加核心 Lower Memory 和 Page 11h 之外的诊断对象，例如 BER、FEC 计数、SNR、激光频率或温度偏差等；
+2. **Statistics（统计功能）**：对采样较快的可观测量提供一段时间内的最小值、最大值和平均值等统计结果。
+
+首次出现的术语：
+
+- **Observable（可观测量）**：模块能够测量或统计的物理量、信号质量量或错误指标。
+- **BER = Bit Error Ratio，比特误码率。** 错误 bit 数相对于总传输 bit 数的比例，用于衡量数字链路质量。
+- **FEC = Forward Error Correction，前向纠错。** 接收端利用冗余编码纠正传输错误；纠错计数和不可纠正帧可用于评估链路余量。
+- **SNR = Signal-to-Noise Ratio，信噪比。** 有效信号与噪声强度之比，用于描述信号质量。
+- **Statistics（统计值）**：在某个统计时间区间内累计得到的最小值、最大值、平均值等结果，不等同于某一瞬间的实时采样。
+
+模块通过 Page 01h 的能力字段广告是否总体支持 VDM；支持时，Page 2Fh 提供更详细的能力与动态控制，VDM 的主要数据结构分布在 Page 20h–2Fh。
+
+## M10.2 四类诊断信息
+
+| 类型 | 回答的问题 | 示例 |
+|---|---|---|
+| Monitor / Sample | 现在测到多少？ | 当前温度 72°C、当前 BER |
+| Threshold | 到什么数值算异常？ | 温度 High Alarm Threshold = 85°C |
+| Flag | 是否检测到越界或异常？ | 温度 High Alarm Flag = 1 |
+| Statistic | 这一统计区间表现如何？ | BER 最大值、平均值、最小值 |
+
+这里的 **Sample（样本/采样值）** 是某次或当前的测量结果；**Threshold（阈值）** 是用于比较的边界；**Flag（标志）** 是比较或异常检测产生的状态结果。
+
+可以记成：
+
+```text
+Sample：事实值
+Threshold：判断标准
+Flag：判断结果
+Statistic：一段时间的汇总表现
+```
+
+VDM 不只是“读取一个当前值”。一个 VDM Monitor 可以提供当前 Sample，也可以配套 Threshold、threshold-crossing Flag 和 Mask；对于统计型 Observable，还可以提供 min/max/average 等区间统计。
+
+### M10.2 阶段检查
+
+已正确完成四类诊断信息映射：
+
+```text
+当前温度                         → Sample
+High Alarm Threshold             → Threshold
+High Alarm Flag                  → Flag
+统计区间内 BER 最大值             → Statistic
+```
+
+判断时应先问它回答的是哪个问题：现在是多少、什么算异常、是否已异常，还是一段时间表现如何。
+
+## M10.3 VDM Instance 与 Descriptor
+
+首次出现的术语：
+
+- **VDM Instance，VDM 实例。** VDM 页面中的一个编号 Slot（槽位），用于承载某个基本 Observable，或者该 Observable 的 min/max/average 统计值。
+- **Slot，槽位。** 一组按编号分配的数据位置；编号本身只表示位置，不直接说明其中是什么诊断量。
+- **Descriptor，描述符。** 用于解释某个 VDM Instance 的元数据，告诉 Host 该实例是否有效、关联哪一种 Observable/Statistic，以及关联哪组 Threshold。
+- **Descriptor Array，描述符数组。** 模块按 Instance 编号提供的一组 Descriptor，Host 通过遍历它建立“诊断量 ↔ Instance 编号”的映射。
+- **Active Instance，活动实例。** 已被模块分配给某个 Observable 或 Statistic 的实例。
+- **Passive Instance，被动/未使用实例。** 未被分配诊断对象的空槽位。
+
+一个 VDM Instance 可以关联：
+
+- 某条 Lane；
+- 某个 Data Path；
+- 整个 Module；
+- 一个基本 Observable；
+- 或基本 Observable 的 min/max/average Statistic。
+
+模块最多可以提供 256 个 VDM Instance。它们按每组 64 个分布：
+
+| Descriptor Page | Instance 范围 |
+|---|---|
+| Page 20h | 1–64 |
+| Page 21h | 65–128 |
+| Page 22h | 129–192 |
+| Page 23h | 193–256 |
+
+对应的 Sample 位于 Page 24h–27h。
+
+### 为什么必须先读 Descriptor
+
+VDM Instance 与 Observable 的关联是 **module-defined（由模块定义）**，不是由规范给所有模块规定固定编号。
+
+因此可能出现：
+
+```text
+模块 A：Instance 1 = BER
+模块 B：Instance 1 = SNR
+模块 C：Instance 1 = unused/passive
+```
+
+Host 的正确流程：
+
+```text
+确认模块支持 VDM
+→ 读取 Page 20h–23h Descriptor Array
+→ 跳过 Passive Instance
+→ 识别目标 Observable、Lane/Data Path/Module 范围和 Statistic 类型
+→ 建立 Observable 到 Instance 编号的映射
+→ 再从 Page 24h–27h 读取对应 Sample
+```
+
+错误做法：
+
+```text
+不读 Descriptor
+→ 固定读取 VDMSample1
+→ 永远把它解释成 BER
+```
+
+这种实现可能在某一模块上“碰巧正确”，但更换模块型号后就会把完全不同的数据按 BER 解码。
+
+### Descriptor 与 Sample 的职责区别
+
+```text
+Descriptor：说明“这个 Instance 是什么”
+Sample：给出“这个 Instance 当前是多少”
+```
+
+Firmware 应缓存解析后的 Instance Map，但在模块更换、重新发现能力或相关配置变化后，需要重新确认映射和关联 Threshold 是否仍然适用。
+
+### M10.3 当前恢复点
+
+今日课程暂停。下次从以下尚未作答、尚未计入累计提问的场景题继续：
+
+```text
+Host 想读取模块支持的 BER：
+
+A. 固定读取 VDM Instance 1，并总是按 BER 解码
+B. 先读取 Descriptor Array，找到 Observable 类型为 BER 的 Active Instance，
+   确认其 Lane/Data Path 范围，再读取对应 Sample
+```
+
+需要选择正确实现并解释为什么 Instance 编号不能被写死。
+
+---
+
+# 11. M1–M9 跨模块串联
 
 一次典型的 Host 管理流程可以串联为：
 
@@ -1454,9 +1842,10 @@ Lane 3–4 = DPInitialized
 6. 根据 MSM 判断模块是否处于可管理/可运行状态          [M6]
 7. 用 Lower/Upper + Page/Bank 正确定位寄存器            [M7]
 8. 从 Page 00h–05h 获取身份、能力、阈值和可选功能       [M8]
+9. 用 Page 10h 控制 Lane/Data Path，并从 Page 11h 验证   [M9]
 ```
 
-## 9.1 FW 开发中的核心不变量
+## 11.1 FW 开发中的核心不变量
 
 1. **管理可用性与高速业务可用性分离。**
 2. **寄存器值必须按宽度、位号和枚举定义解释。**
