@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMIS 协议学习路线图 — Sigma Progress</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950;
+    --orange:#d29922; --red:#f85149; --purple:#bc8cff; --cyan:#39c5cf;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;padding:28px 32px 90px}
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;border-bottom:1px solid var(--border);padding-bottom:18px;margin-bottom:22px}
+  h1{font-size:26px;font-weight:700}
+  h1 .tag{font-size:13px;color:var(--cyan);font-weight:500;margin-left:10px}
+  .meta{font-size:13px;color:var(--muted);line-height:1.9}
+  .meta b{color:var(--text)}
+  .overall{min-width:320px}
+  .overall .row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .overall .row b{color:var(--green)}
+  .bar{height:12px;background:#21262d;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#238636,var(--green));border-radius:6px}
+  .weeks{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px}
+  .week{font-size:12px;padding:6px 12px;border-radius:14px;background:var(--panel);border:1px solid var(--border);color:var(--muted)}
+  .week.cur{background:#1f6feb;border-color:#1f6feb;color:#fff;box-shadow:0 0 12px rgba(31,111,235,.55)}
+  .week b{font-weight:600}
+  .phase{margin-bottom:26px}
+  .phase-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;margin-bottom:12px;color:var(--accent)}
+  .phase-title .idx{width:26px;height:26px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+  .phase-title .range{font-size:12px;color:var(--muted);font-weight:400}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px 12px}
+  .card .id{font-size:11px;color:var(--muted);letter-spacing:1px}
+  .card h3{font-size:14.5px;margin:4px 0 6px;font-weight:600;line-height:1.4}
+  .card .sec{font-size:11.5px;color:var(--cyan);font-family:Consolas,monospace}
+  .card .est{font-size:11px;color:var(--muted);margin-top:6px}
+  .badge{position:absolute;top:12px;right:12px;font-size:10.5px;padding:3px 8px;border-radius:10px;font-weight:600;letter-spacing:.5px}
+  .badge.not-started{background:#21262d;color:var(--muted);border:1px solid var(--border)}
+  .badge.in-progress{background:rgba(31,111,235,.18);color:#79b8ff;border:1px solid #1f6feb}
+  .badge.mastered{background:rgba(63,185,80,.15);color:var(--green);border:1px solid var(--green)}
+  .mini{height:6px;background:#21262d;border-radius:4px;margin-top:10px;overflow:hidden}
+  .mini i{display:block;height:100%;background:var(--accent);border-radius:4px}
+  .card.mastered .mini i{background:var(--green)}
+  .pct{font-size:10.5px;color:var(--muted);text-align:right;margin-top:3px}
+  .card.current{border-color:#1f6feb;box-shadow:0 0 0 1px #1f6feb,0 0 18px rgba(31,111,235,.35)}
+  .card.current::after{content:"YOU ARE HERE";position:absolute;bottom:-9px;left:14px;background:#1f6feb;color:#fff;font-size:9.5px;padding:2px 8px;border-radius:8px;letter-spacing:1px;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.96)}}
+  .star{color:var(--orange)}
+  .notes{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--muted);line-height:1.9}
+  .notes b{color:var(--text)}
+  .notes .k{color:var(--green)} .notes .w{color:var(--orange)} .notes .r{color:var(--cyan)}
+  footer{position:fixed;left:0;right:0;bottom:0;background:rgba(13,17,23,.92);backdrop-filter:blur(6px);border-top:1px solid var(--border);padding:10px 32px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--muted)}
+  footer .fbar{flex:1;max-width:420px;margin:0 20px}
+  footer b{color:var(--green)}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>CMIS 协议学习路线图<span class="tag">OIF-CMIS Rev 5.3 · 408 页 · Bloom 2-Sigma</span></h1>
+    <div class="meta" style="margin-top:8px">
+      目标：<b>光模块 Firmware 开发</b> ｜ 节奏：<b>5 天/周 × 2h = 10h/周</b> ｜ 起点：<b>零基础</b> ｜ 建档：<b>2026-10-20</b>
+    </div>
+  </div>
+  <div class="overall">
+    <div class="row"><span>总体掌握度（7 / 16 概念）</span><b>47%</b></div>
+    <div class="bar"><i style="width:47%"></i></div>
+    <div class="row" style="margin-top:6px"><span>当前：Week 5 / 10 · 已暂停</span><span>M8 · 管理页 00h–05h</span></div>
+  </div>
+</header>
+
+<div class="weeks">
+  <div class="week"><b>W1</b> M1+M2 全景/术语</div>
+  <div class="week"><b>W2</b> M3+M4 接口层/功能模型</div>
+  <div class="week"><b>W3</b> M5 Control Set</div>
+  <div class="week"><b>W4</b> M6 状态机⭐</div>
+  <div class="week cur"><b>W5</b> M7+M8 内存映射</div>
+  <div class="week"><b>W6</b> M9 Lane 控制</div>
+  <div class="week"><b>W7</b> M10+M11 诊断/CDB</div>
+  <div class="week"><b>W8</b> M12 CDB 命令</div>
+  <div class="week"><b>W9</b> M13+M14 高级/时序</div>
+  <div class="week"><b>W10</b> M15+M16 实战/考核</div>
+</div>
+<div class="phase">
+  <div class="phase-title"><span class="idx">1</span>基础认知 <span class="range">Week 1 · 约 8h</span></div>
+  <div class="cards">
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M1</div><h3>光模块与 CMIS 全景</h3>
+      <div class="sec">§1, §4.1–4.2, App A</div>
+      <div class="est">预估 4h ｜ 主机-模块关系、CMIS 是什么、文档地图</div>
+      <div class="mini"><i style="width:92%"></i></div><div class="pct">92%</div>
+    </div>
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M2</div><h3>术语、数据类型与数据操作</h3>
+      <div class="sec">§2.3, §3</div>
+      <div class="est">预估 4h ｜ 关键字、缩略语、Data Types/Operations</div>
+      <div class="mini"><i style="width:95%"></i></div><div class="pct">95%</div>
+    </div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-title"><span class="idx">2</span>接口与核心模型 <span class="range">Week 2–4 · 约 25h</span></div>
+  <div class="cards">
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M3</div><h3>管理接口分层：MSL 与 RAL</h3>
+      <div class="sec">§5（MSL 信号 / RAL 读写测）</div>
+      <div class="est">预估 5h ｜ READ/WRITE/TEST、Coherency</div>
+      <div class="mini"><i style="width:95%"></i></div><div class="pct">95%</div>
+    </div>
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M4</div><h3>功能模型：Application 与 Data Path</h3>
+      <div class="sec">§6.1–6.2.2</div>
+      <div class="est">预估 6h ｜ App/AppInst、AppSel、Lane 分配</div>
+      <div class="mini"><i style="width:95%"></i></div><div class="pct">95%</div>
+    </div>
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M5</div><h3>Control Set 与配置流程</h3>
+      <div class="sec">§6.2.3–6.2.4, App D/E</div>
+      <div class="est">预估 6h ｜ Staged/Applied、配置命令（FW 核心）</div>
+      <div class="mini"><i style="width:92%"></i></div><div class="pct">92%</div>
+    </div>
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M6</div><h3>模块状态机 MSM <span class="star">★难点</span></h3>
+      <div class="sec">§6.3</div>
+      <div class="est">预估 8h ｜ 8 大状态、PwrUp/PwrDn、分页行为</div>
+      <div class="mini"><i style="width:96%"></i></div><div class="pct">96%</div>
+    </div>
+  </div>
+</div>
+<div class="phase">
+  <div class="phase-title"><span class="idx">3</span>内存映射 <span class="range">Week 5–6 · 约 16h</span></div>
+  <div class="cards">
+    <div class="card mastered">
+      <span class="badge mastered">MASTERED</span>
+      <div class="id">M7</div><h3>内存映射机制：Lower Memory 与分页/Banked</h3>
+      <div class="sec">§8.1–8.2</div>
+      <div class="est">预估 5h ｜ Page/Bank 选择、易失性规则</div>
+      <div class="mini"><i style="width:92%"></i></div><div class="pct">92%</div>
+    </div>
+    <div class="card current in-progress">
+      <span class="badge in-progress">IN PROGRESS</span>
+      <div class="id">M8</div><h3>管理页：Page 00h–05h</h3>
+      <div class="sec">§8.3–8.8</div>
+      <div class="est">预估 5h ｜ 行政信息、广告、阈值</div>
+      <div class="mini"><i style="width:52%"></i></div><div class="pct">52%</div>
+    </div>
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M9</div><h3>Lane/Datapath 控制与状态（10h/11h/18h/19h）</h3>
+      <div class="sec">§8.9–8.10, §8.17–8.18</div>
+      <div class="est">预估 6h ｜ TxRxState、DatapathState（FW 核心）</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-title"><span class="idx">4</span>诊断与 CDB <span class="range">Week 7–8 · 约 19h</span></div>
+  <div class="cards">
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M10</div><h3>诊断：VDM 与性能页 13h/14h</h3>
+      <div class="sec">§7.1, §8.12–8.13, §8.22</div>
+      <div class="est">预估 6h ｜ Alarms/Warnings、DM TLV</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M11</div><h3>CDB 消息机制</h3>
+      <div class="sec">§7.2, §8.23–8.24, §9.1–9.2</div>
+      <div class="est">预估 5h ｜ Completion Code、传输规则</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M12</div><h3>CDB 命令组精讲（含固件管理）</h3>
+      <div class="sec">§9.3–9.12</div>
+      <div class="est">预估 8h ｜ FW 升级、PM、BERT、安全命令</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+  </div>
+</div>
+<div class="phase">
+  <div class="phase-title"><span class="idx">5</span>高级特性与物理层 <span class="range">Week 9 · 约 11h</span></div>
+  <div class="cards">
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M13</div><h3>高级特性：MBR/可调激光器/热重构等</h3>
+      <div class="sec">§7.3–7.8</div>
+      <div class="est">预估 6h ｜ 按需深查</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M14</div><h3>时序规范与 MCI 物理层（I2C/SPI）</h3>
+      <div class="sec">§10, App A–B</div>
+      <div class="est">预估 5h ｜ t_low/t_high、时序图</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-title"><span class="idx">6</span>实战与考核 <span class="range">Week 10 · 约 9h</span></div>
+  <div class="cards">
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M15</div><h3>实战串讲：初始化/诊断/网络路径示例</h3>
+      <div class="sec">App D–H</div>
+      <div class="est">预估 5h ｜ 端到端流程</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+    <div class="card not-started">
+      <span class="badge not-started">NOT STARTED</span>
+      <div class="id">M16</div><h3>综合考核与跨版本兼容</h3>
+      <div class="sec">App G + 全书串讲</div>
+      <div class="est">预估 4h ｜ 毕业验收</div>
+      <div class="mini"><i style="width:0%"></i></div><div class="pct">0%</div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <b>FW 开发重点标注</b>：<span class="k">核心必精</span> M5 Control Set · M6 状态机 · M7 内存映射 · M9 Lane 控制 · M11/M12 CDB —— 这 6 个是固件日常工作的主战场；
+  <span class="r">参考查阅</span> M8/M10/M13/M14 开发时按需深查；<span class="w">掌握门槛</span> 每概念答对率 ≥80% 才解锁下一个（2-Sigma 规则）。
+  <br>题型偏好：寄存器读写预测 · 状态机转移推演 · 初始化时序排错。
+  <br>详细复习资料：<code>review-notes.md</code>（后续课程持续更新定义、工程原因、边界、误区与自测题）。
+</div>
+
+<footer>
+  <span>📁 sigma/cmis-protocol/ ｜ session.md 每轮同步</span>
+  <div class="fbar bar"><i style="width:47%"></i></div>
+  <span>总体进度 <b>47%</b> · 已掌握 7/16 · M8（52%）· 已暂停</span>
+</footer>
+
+
+
+</body>
+</html>

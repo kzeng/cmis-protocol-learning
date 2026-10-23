@@ -1,0 +1,14 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CMIS MSM 主路径</title>
+<style>body{margin:0;background:#0d1117;color:#e6edf3;font-family:"Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1180px;margin:36px auto;padding:0 24px}h1{font-size:25px}.sub{color:#8b949e}.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:32px 0}.state{width:145px;min-height:95px;padding:14px;border:2px solid #58a6ff;background:#161b22;display:flex;flex-direction:column;justify-content:center;text-align:center}.steady{border-radius:8px}.transient{border-radius:50%}.state b{font-size:15px}.state small{color:#8b949e;margin-top:6px}.arrow{color:#d29922;font-size:25px}.legend,.note{border:1px solid #30363d;background:#161b22;border-radius:10px;padding:15px 18px;margin-top:16px;line-height:1.8}.steady-mark{color:#58a6ff}.transient-mark{color:#f778ba}.event{font-size:11px;color:#d29922;text-align:center;max-width:90px}</style></head><body><main>
+<h1>Module State Machine：正常上电与功耗切换主路径</h1><div class="sub">矩形圆角 = Steady State；椭圆 = Transient State</div>
+<div class="flow">
+ <div class="state transient"><b>Resetting</b><small>关闭/清理模块</small></div><div class="arrow">→</div>
+ <div class="state steady"><b>Reset</b><small>保持复位</small></div><div class="arrow">→</div>
+ <div class="state transient"><b>MgmtInit</b><small>初始化管理接口</small></div><div class="arrow">→</div>
+ <div class="state steady"><b>ModuleLowPwr</b><small>基本可管理</small></div><div><div class="event">升功耗请求</div><div class="arrow">→</div></div>
+ <div class="state transient"><b>ModulePwrUp</b><small>启动高功耗电路</small></div><div class="arrow">→</div>
+ <div class="state steady"><b>ModuleReady</b><small>完全可操作</small></div>
+</div>
+<div class="note"><b>返回低功耗：</b>ModuleReady → ModulePwrDn（Transient）→ ModuleLowPwr。<br><b>高优先级路径：</b>除 Reset 状态外，复位请求可使模块转向 Resetting；严重内部故障可进入 ModuleFault。</div>
+<div class="legend"><span class="steady-mark">Steady：</span>等待 Host 或异常事件，持续时间可不受限。　<span class="transient-mark">Transient：</span>执行模块控制的活动，通常有完成条件和最大时限。</div>
+</main></body></html>

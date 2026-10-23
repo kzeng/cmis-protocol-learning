@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CMIS 学习小结 · 2026-10-21</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;--blue:#58a6ff;--green:#3fb950;--orange:#d29922}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.7}main{max-width:920px;margin:36px auto;padding:0 22px 50px}h1{margin-bottom:5px}.sub,.muted{color:var(--muted)}.progress{height:13px;background:#21262d;border:1px solid var(--border);border-radius:8px;overflow:hidden}.progress i{display:block;width:31%;height:100%;background:linear-gradient(90deg,#238636,var(--green))}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:20px 0}.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}.card h2{font-size:16px;margin:0 0 10px;color:var(--blue)}.metric{font-size:30px;font-weight:700;color:var(--green)}ul{padding-left:21px}.ok{color:var(--green)}.next{border-color:var(--orange)}.next h2{color:var(--orange)}code{background:#21262d;border:1px solid var(--border);border-radius:5px;padding:2px 6px;color:#79c0ff}pre code{display:block;padding:12px}.footer{margin-top:20px;color:var(--muted);font-size:13px;border-top:1px solid var(--border);padding-top:16px}
+</style></head><body><main>
+<h1>CMIS 学习小结</h1>
+<div class="sub">OIF-CMIS 05.3 · 2026-10-22 · 今日状态已保存</div>
+<div class="progress"><i style="width:47%"></i></div><div class="muted" style="margin-top:6px">总体进度 47% · 已掌握 7/16 个概念</div>
+<div class="grid">
+ <section class="card"><h2>累计掌握</h2><div class="metric">7 / 16</div><div>M1 至 M7</div></section>
+ <section class="card"><h2>今日完成</h2><div class="metric">M6 + M7</div><div>Module MSM 与内存映射</div></section>
+ <section class="card"><h2>当前模块</h2><div class="metric">M8 · 52%</div><div>管理页 Page 00h–05h</div></section>
+</div>
+<section class="card"><h2>今日关键成果</h2><ul>
+ <li><span class="ok">✓</span> 区分 Application、Application Instance 与 Data Path</li>
+ <li><span class="ok">✓</span> 理解 Data Path 包含 Host/Media lanes 与内部资源</li>
+ <li><span class="ok">✓</span> 掌握并行 Data Path 的 Lane 不重叠规则</li>
+ <li><span class="ok">✓</span> 区分 Staged 与 Active Control Set</li>
+ <li><span class="ok">✓</span> 区分 Provisioning 与 Commissioning</li>
+ <li><span class="ok">✓</span> 掌握 Apply 校验、ConfigSuccess/ConfigRejected 与 per-lane 配置</li>
+</ul></section>
+<section class="card next" style="margin-top:14px"><h2>下次恢复入口</h2>
+<p>从简化状态机开始：</p><pre><code>OFF → INITIALIZING → READY</code></pre>
+<p>辨析：哪些是状态，哪些是事件，哪些是动作，以及事件如何触发状态转移。</p>
+</section>
+<div class="footer">详细复习资料：sigma/cmis-protocol/review-notes.md · 学习档案：session.md · 路线图：roadmap.html</div>
+</main></body></html>
