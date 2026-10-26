@@ -1815,7 +1815,7 @@ Firmware 应缓存解析后的 Instance Map，但在模块更换、重新发现�
 
 ### M10.3 当前恢复点
 
-今日课程再次暂停。下次仍从以下尚未作答、尚未计入累计提问的场景题继续：
+课程已恢复，从以下尚未作答、尚未计入累计提问的场景题继续：
 
 ```text
 Host 想读取模块支持的 BER：
@@ -1826,6 +1826,369 @@ B. 先读取 Descriptor Array，找到 Observable 类型为 BER 的 Active Insta
 ```
 
 需要选择正确实现并解释为什么 Instance 编号不能被写死。
+
+### M10.3 阶段检查
+
+已正确选择先解析 Descriptor Array，再读取 BER 对应的 Active Instance；当前待巩固的是“为什么编号不能写死”。
+
+根本原因：
+
+```text
+Instance Number = 槽位地址/位置
+Descriptor      = 该槽位的数据类型说明书
+```
+
+CMIS 规定可支持哪些 Observable 类型以及 Descriptor 的解释方法，但不要求所有模块把同一种 Observable 放在同一个 Instance 编号中。分配由模块根据自身支持的功能和 Lane/Data Path 结构决定。
+
+例如：
+
+| 模块 | Instance 1 | Instance 2 |
+|---|---|---|
+| 模块 A | Lane 1 BER Sample | Lane 1 SNR Sample |
+| 模块 B | Module TEC Current | Lane 4 BER Maximum |
+| 模块 C | Passive / unused | Data Path 2 BER Average |
+
+如果 Firmware 写死 `Instance 1 = BER`：
+
+- 在模块 A 上可能碰巧正确；
+- 在模块 B 上会把 TEC 电流错误解码成 BER；
+- 在模块 C 上会读取未使用槽位。
+
+因此兼容实现必须：
+
+```text
+遍历 Descriptor
+→ 按 Observable 类型筛选 BER
+→ 再按 Lane/Data Path/Module 作用范围筛选目标
+→ 确认 Basic Sample 还是 min/max/average Statistic
+→ 使用最终找到的 Instance 编号读取 Sample
+```
+
+### M10.3 原因补测结论
+
+已正确确认：VDM Instance 编号只是槽位位置，具体含义由 Descriptor 定义。Firmware 必须动态建立映射，不能把某个编号永久绑定为 BER 或其他 Observable。
+
+## M10.4 两字节 Descriptor 的字段结构
+
+每个 VDM Instance 使用一个 **2-byte Descriptor（两字节描述符）**。
+
+### 第一个字节：Threshold 与 Resource
+
+第一个字节位于偶数地址：
+
+| Bits | 字段 | 含义 |
+|---|---|---|
+| 7–4 | `LocalThresholdSetID` | 指向该 Observable 使用的本组 Threshold Set |
+| 3–0 | `Monitored Resource` | 表示它关联哪条 Lane、从哪条 Lane 开始的 Data Path，或整个 Module |
+
+**Resource，资源对象。** 在这里表示被监测的具体对象，而不是数值单位。
+
+`Monitored Resource` 编码：
+
+```text
+0：Lane 1，或从 Lane 1 开始的 Data Path
+1：Lane 2，或从 Lane 2 开始的 Data Path
+...
+7：Lane 8，或从 Lane 8 开始的 Data Path
+15：整个 Module，不关联具体 Lane/Data Path
+```
+
+这里为什么既可能是 Lane，也可能是 Data Path？因为最终如何解释 Resource，还要结合 `Observable Type`：
+
+- 如果 Observable Type 是 Media Lane Laser Temperature，则 Resource 代表具体 Media Lane；
+- 如果 Observable Type 是 Pre-FEC BER Current Sample，则规范定义它是 Data Path 级 Observable，Resource 代表该 Data Path 的起始 Lane；
+- 如果 Observable Type 是 TEC Current，则规范定义它是 Module 级 Observable，Resource 应为 Module。
+
+### 第二个字节：Observable Type
+
+第二个字节位于奇数地址：
+
+| Bits | 字段 | 含义 |
+|---|---|---|
+| 7–0 | `Observable Type` | 说明该 Instance 具体是什么诊断量，以及它是 Basic 还是 Statistic |
+
+例如规范定义了不同 Type ID：
+
+```text
+Type 2  = TEC Current，Module 级 Basic Observable
+Type 5  = Media Input SNR，Media Lane 级 Basic Observable
+Type 11 = Media Input Pre-FEC BER Maximum，Data Path 级 Statistic
+Type 15 = Media Input Pre-FEC BER Current Sample，Data Path 级 Basic Observable
+```
+
+### Type ID
+
+**Type ID，类型编号。** 它是规范为 Observable Type 分配的编码，与 VDM Instance Number 完全不同：
+
+```text
+VDM Instance Number
+= 这个槽位位于哪里
+
+Observable Type ID
+= 这个槽位中的数据是什么
+```
+
+因此 Firmware 匹配 BER 时，应检查 Descriptor 的 `Observable Type`，而不是检查 Instance Number。
+
+### Threshold Set 关联
+
+每个 Active Instance 的 Descriptor 还会指向一个 Threshold Set。一个 Threshold Set 包含四个判断边界：
+
+```text
+High Alarm
+Low Alarm
+High Warning
+Low Warning
+```
+
+同一个 Threshold Set 可以被多个 VDM Instance 共享。Host 不能通过“Instance 编号”等量推导 Threshold 编号，必须按 Descriptor 中的 `LocalThresholdSetID` 和 Descriptor 所在组计算全局 Threshold Set ID。
+
+### M10.4 阶段检查
+
+已正确识别：对于 Data Path 级 Observable，`Monitored Resource=2` 表示“从 Lane 3 开始的 Data Path”。
+
+需要纠正：
+
+```text
+Pre-FEC BER Current Sample
+= 当前实时 BER
+= Basic Observable
+
+Pre-FEC BER Maximum Sample
+= 当前统计区间内的 BER 最大值
+= Statistic Observable
+```
+
+判断 Basic 与 Statistic 时，应读取完整的 `Observable Type`，不能看到 BER 就默认它是某种统计值。
+
+| 名称关键词 | 类型 | 回答的问题 |
+|---|---|---|
+| `Current Sample` | Basic | 现在测到多少？ |
+| `Minimum Sample` | Statistic | 统计区间内最小值是多少？ |
+| `Maximum Sample` | Statistic | 统计区间内最大值是多少？ |
+| `Sample Average` | Statistic | 统计区间内平均值是多少？ |
+
+### M10.4 补测结论
+
+已正确确认：
+
+```text
+Pre-FEC BER Current Sample  → Basic
+Pre-FEC BER Maximum Sample  → Statistic
+```
+
+判断依据是完整 Observable Type，而不是仅看被监测量是否为 BER。
+
+## M10.5 VDM Statistics Freeze
+
+首次出现的术语：
+
+- **Freeze，冻结。** 暂停更新 Host 可读取的统计报告寄存器，使多个统计结果保持在同一个已完成区间的快照上。
+- **Statistics Reporting Registers，统计报告寄存器。** Page 24h–27h 中承载 minimum、maximum、average 等统计结果的 VDM Sample 寄存器。
+- **Performance Monitoring Interval，性能监测区间。** Host 定义的一段统计时间范围，模块在该区间内累计 min/max/average 等结果。
+- **Contiguous Intervals，连续无间隙区间。** 前一个统计区间结束时，下一个区间立即开始，中间没有漏采样时间。
+
+Page 2Fh 提供 VDM Advertisement and Dynamic Controls（VDM 能力广告与动态控制）。其中：
+
+| 字段 | 访问属性 | 用途 |
+|---|---|---|
+| `FreezeRequest` | RW | Host 请求冻结或释放统计报告寄存器 |
+| `FreezeDone` | RO | 模块确认统计报告寄存器已冻结，可以安全读取 |
+| `UnfreezeDone` | RO | 模块确认统计报告寄存器已恢复实时更新 |
+
+### FreezeRequest 的语义
+
+Host 将 `FreezeRequest` 置 1 后：
+
+```text
+模块完成当前统计区间
+→ 将该区间最终结果写入统计报告寄存器
+→ 冻结这些报告寄存器，不再改变其可读值
+→ 同时原子地重置内部统计变量并开始新区间
+→ 置位 FreezeDone，通知 Host 可以一致读取
+```
+
+关键点：
+
+```text
+Freeze reporting registers
+≠ 停止内部监测和统计
+```
+
+报告寄存器冻结期间，模块仍在内部为新区间收集统计数据。因此 Host 可以慢慢读取多个 VDM Statistic，而不会让后续区间丢失 Sample。
+
+### 为什么需要 Freeze
+
+如果 Host 不冻结，依次读取 BER Minimum、Maximum、Average 时，模块可能在三次读取之间继续更新寄存器：
+
+```text
+读取 Minimum：时刻 T1
+读取 Maximum：时刻 T2
+读取 Average：时刻 T3
+```
+
+三项结果可能来自不同更新时刻，不能保证属于同一个一致统计快照。
+
+使用 Freeze 后：
+
+```text
+置 FreezeRequest=1
+→ 等待 FreezeDone=1
+→ 读取全部目标 Statistic
+→ 清 FreezeRequest=0
+→ 等待 UnfreezeDone=1
+```
+
+这相当于让 Host 读取一个稳定的区间结果快照。
+
+### Freeze 与新统计区间
+
+Freeze 不只是“把旧值按住”。模块在冻结报告值的同一边界上启动新的内部统计区间：
+
+```text
+区间 N 结束并冻结供 Host 读取
+|| 同一个边界 ||
+区间 N+1 开始在内部收集
+```
+
+因此可以形成连续、无间隙的 Host-defined Performance Monitoring Intervals（Host 定义的性能监测区间）。
+
+### Firmware 流程
+
+```text
+设置 FreezeRequest
+→ 轮询 FreezeDone，带超时
+→ FreezeDone 后读取所需统计实例
+→ 清除 FreezeRequest
+→ 轮询 UnfreezeDone，带超时
+→ 等待下一统计边界后重复
+```
+
+不能在写入 `FreezeRequest` 后立即读取并假定已经冻结；和其他异步控制一样，Host 必须等待模块的完成状态确认。
+
+### M10.5 常见误区：Freeze 不等于停止采样
+
+错误理解：
+
+```text
+FreezeRequest=1
+→ 模块停止所有 VDM 采样和内部统计
+```
+
+正确模型可以分成两个区域：
+
+```text
+前台展示区：Statistics Reporting Registers
+→ 冻结，保持区间 N 的最终结果，供 Host 稳定读取
+
+后台统计区：Internal Statistics Variables
+→ 不冻结，立即开始收集区间 N+1 的新 Sample
+```
+
+因此 `FreezeDone=1` 的准确含义是：
+
+```text
+区间 N 的报告值已经稳定，可以安全读取
++
+区间 N+1 已经在模块内部开始统计
+```
+
+而不是“模块停止诊断监测”。这种双缓冲式思维可帮助理解为什么 Freeze 能同时实现一致读取和无间隙统计。
+
+### M10.5 复测结论
+
+已正确确认：`FreezeDone=1` 时，统计报告寄存器保持旧区间的稳定结果，模块内部则继续收集新区间数据。
+
+## M10.6 VDM Threshold、Flag 与 Mask
+
+三个概念形成一条诊断链：
+
+```text
+Sample 与 Threshold 比较
+→ 发生 Threshold Crossing
+→ 模块锁存对应 Flag
+→ 若对应 Mask=0，Flag 可贡献 Interrupt 请求
+```
+
+### Threshold Crossing
+
+**Threshold Crossing，阈值越界。** 表示被监测值越过了某个 High/Low Alarm/Warning 判断边界。
+
+每个 VDM Instance 有四类越界 Flag：
+
+| Flag | 置位条件 |
+|---|---|
+| High Alarm | Observable > High Alarm Threshold |
+| Low Alarm | Observable < Low Alarm Threshold |
+| High Warning | Observable > High Warning Threshold |
+| Low Warning | Observable < Low Warning Threshold |
+
+Page 28h–2Bh 保存模块定义的 Threshold Set，均为只读。实际 Threshold 可能依赖当前 Commissioned Application，因此 Host 通常应在相关 Data Path 初始化后重新读取。
+
+### Latched Flag
+
+**Latched Flag，锁存标志。** 异常条件发生后，Flag 被保留下来，即使被监测值随后恢复正常，Host 仍能看到“曾经发生过越界”。
+
+Page 2Ch 保存 VDM Threshold Crossing Flags。
+
+### RO/COR
+
+**RO/COR = Read Only / Clear On Read，只读且读取后清除。**
+
+Host 不能写 Flag；读取 Page 2Ch 的相应 Flag 后，已锁存的 Flag 会按 COR 语义被清除。因此 Firmware 读取时应先保存原始值，再进行日志、告警和策略处理，避免二次读取时丢失事件现场。
+
+### Mask
+
+**Mask，屏蔽位。** Page 2Dh 保存每个 VDM Flag 对应的可写 Mask。
+
+```text
+Mask = 0：未屏蔽；Flag 置位时可贡献 Interrupt 请求
+Mask = 1：已屏蔽；Flag 不贡献 Interrupt 请求
+```
+
+所有 VDM Mask 的默认值为 `1`，即默认屏蔽。
+
+最重要的边界：
+
+```text
+Mask=1
+≠ 禁止检测 Threshold Crossing
+≠ 禁止 Flag 置位
+
+Mask=1
+= 只抑制该 Flag 对 Interrupt 请求的贡献
+```
+
+所以 Host 即使屏蔽某个 VDM 告警的 Interrupt，仍可轮询 Page 2Ch 发现对应 Flag。
+
+### Interrupt
+
+**Interrupt，中断请求。** 模块通过管理接口相关信号通知 Host“存在需要处理的事件”，使 Host 不必持续高频轮询所有状态。Mask 用来控制某个 Flag 是否参与生成该通知，但不改变诊断事件本身。
+
+### Firmware 处理流程
+
+```text
+初始化时按策略配置 Page 2Dh Mask
+→ 收到 Interrupt 或定期轮询
+→ 一次读取并保存 Page 2Ch Flag 原始值
+→ 根据 Descriptor 映射到 Observable/Resource
+→ 读取对应 Sample 与 Threshold
+→ 记录事件并执行恢复或降级策略
+```
+
+### M10.6 当前恢复点
+
+今日课程暂停，明天从以下尚未作答、尚未计入累计提问的场景题继续：
+
+```text
+Sample > High Alarm Threshold
+Mask = 1
+
+A. 模块停止检测，Flag 不会置位
+B. 模块仍检测并锁存 Flag，但该 Flag 不贡献 Interrupt；Host 可轮询发现
+```
+
+需要判断 Mask 影响的是“事件检测/Flag”，还是仅影响“Interrupt 通知”。
 
 ---
 

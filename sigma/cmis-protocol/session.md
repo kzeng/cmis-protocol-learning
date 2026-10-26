@@ -13,9 +13,9 @@
 - **已掌握**: 9 / 16 概念 (57% 综合进度)
 - **当前概念**: M10 诊断：VDM 与性能页
 - **当前周次**: Week 7 / 10
-- **累计提问**: 104 轮
-- **会话状态**: paused（今日课程结束）
-- **恢复入口**: M10 VDM Descriptor 场景题：读取 BER 前先遍历 Descriptor Array，定位 Observable 类型为 BER 的 Active Instance，再读取对应 Sample
+- **累计提问**: 110 轮
+- **会话状态**: paused（今日课程结束，明天继续）
+- **恢复入口**: M10 Mask 边界场景题：Sample 越过 High Alarm Threshold 且 Mask=1 时，Flag 仍锁存，但不贡献 Interrupt 请求
 
 ## 概念清单与掌握度 (Concepts)
 
@@ -30,7 +30,7 @@
 | M7 | 内存映射机制：Lower Memory 与分页/Banked | §8.1-8.2 | 5h | mastered | 92% |
 | M8 | 管理页：Page 00h-05h | §8.3-8.8 | 5h | mastered | 92% |
 | M9 | Lane/Datapath 控制与状态 10h/11h/18h/19h | §8.9-8.10, §8.17-8.18 | 6h | mastered | 92% |
-| M10 | 诊断：VDM 与性能页 13h/14h | §7.1, §8.12-8.13, §8.22 | 6h | in-progress | 18% |
+| M10 | 诊断：VDM 与性能页 13h/14h | §7.1, §8.12-8.13, §8.22 | 6h | in-progress | 60% |
 | M11 | CDB 消息机制 | §7.2, §8.23-8.24, §9.1-9.2 | 5h | not-started | 0% |
 | M12 | CDB 命令组精讲（含固件管理） | §9.3-9.12 | 8h | not-started | 0% |
 | M13 | 高级特性：MBR/可调激光器/热重构等 | §7.3-7.8 | 6h | not-started | 0% |
@@ -190,3 +190,11 @@
 - **Session Pause（今日结束）**: 学习者结束今日课程。M1–M9 已掌握，M10 当前 18%；已讲解 VDM 全称与用途、Sample/Threshold/Flag/Statistic 分类，以及 VDM Instance/Descriptor 的模块自定义映射。下次先回答尚未计轮次的 BER 读取题：不能固定读取 Instance 1，必须先从 Descriptor Array 定位 BER 对应的 Active Instance。
 - **Session Resume**: 恢复 M10（18%），从 BER 的 VDM Descriptor 映射场景题继续；该题此前尚未作答，仍不增加累计提问轮次。
 - **Session Pause（今日结束）**: 学习者再次暂停课程。M10 保持 18%，累计提问仍为 104 轮；BER Descriptor 场景题仍未作答。下次继续判断应先解析 Descriptor Array，而不能将固定 VDM Instance 编号写死为 BER。
+- **Session Resume**: 恢复 M10（18%），继续 BER 的 VDM Descriptor 映射题；该题尚未作答，不增加累计提问轮次。
+- **M10 Round 2（Descriptor 映射部分通过）**: 正确选择 B，即先解析 Descriptor Array、定位 BER 的 Active Instance 后再读取对应 Sample；但不能说明为何 Instance 编号不能写死。需建立根本模型：Instance 是模块自定义分配的槽位位置，Descriptor 才定义该槽位代表的 Observable/Statistic、作用范围和 Threshold 关联；不同模块同一编号可对应不同对象或未使用。M10=25%，针对原因补测。
+- **M10 Round 3（Descriptor 原因补测）**: 正确选择 B：Instance 编号只表示槽位位置，具体 Observable、Lane/Data Path/Module 作用范围以及 Basic/Statistic 类型必须由 Descriptor 解释。已理解不同模块可对同一编号作不同分配，因此 Firmware 不能写死映射。M10=35%，进入 Descriptor 字段结构。
+- **M10 Round 4（Descriptor 字段部分通过）**: 正确将 Data Path 级 Observable 的 `Monitored Resource=2` 解释为“从 Lane 3 开始的 Data Path”；但误将 `Pre-FEC BER Current Sample` 判断为最大值统计。需按 Observable Type 名称与 Instance Type 判断：Current Sample 是 Basic 实时采样，Maximum Sample 才是 Statistic 最大值。M10=42%，针对 Basic/Statistic 补测。
+- **M10 Round 5（Basic/Statistic 补测）**: 正确判断 `Pre-FEC BER Current Sample` 为 Basic，`Pre-FEC BER Maximum Sample` 为 Statistic。已能依据 Current/Minimum/Maximum/Average 关键词识别实时采样与区间统计。M10=50%，进入 VDM Statistics Freeze 机制。
+- **M10 Round 6（Freeze 边界误区）**: 误选 A，将 Freeze 理解为停止所有 VDM 采样和内部统计。规范语义是 B：仅冻结 Host 可读的 statistics reporting registers；模块在冻结旧区间结果的同时，原子地重置内部统计变量并开始新区间，持续收集且不丢 Sample。M10 保持 50%，立即复测。
+- **M10 Round 7（Freeze 边界复测）**: 正确选择 B：FreezeDone 表示报告寄存器保持旧区间稳定结果，而模块内部继续收集新区间数据。已掌握 Freeze 只冻结前台报告值、不停止后台采样的边界，以及连续无间隙统计区间。M10=60%，进入 Threshold/Flag/Mask 链路。
+- **Session Pause（明天继续）**: 学习者结束今日课程。M10 当前 60%，已讲解 Threshold Crossing、Latched Flag、RO/COR、Mask 与 Interrupt。下次先回答尚未计轮次的场景题：Mask=1 只抑制 Flag 对 Interrupt 的贡献，不阻止 Threshold 检测与 Flag 锁存。
