@@ -188,3 +188,5 @@
 - **M9 Round 12（Page 10h/11h 闭环验收）**: 正确选择 B：对使用 Host Lane 1–4 的 Data Path，应将关联 Lane 的 DPDeinit 请求全部设为 1，再轮询 Page 11h 并确认所有关联 Lane 最终一致报告 DPDeactivated。正确排除“只写一条 Lane”和“直接写只读 Page 11h 状态”的错误做法。M9=92%，状态 mastered；进入 M10。
 - **M10 Round 1（诊断信息分类）**: 正确分类当前温度为 Sample、High Alarm Threshold 为 Threshold、High Alarm Flag 为 Flag、统计区间内 BER 最大值为 Statistic。已掌握事实值、判断标准、判断结果和区间汇总的基本区别。M10=18%，进入 VDM Instance/Descriptor 发现机制。
 - **Session Pause（今日结束）**: 学习者结束今日课程。M1–M9 已掌握，M10 当前 18%；已讲解 VDM 全称与用途、Sample/Threshold/Flag/Statistic 分类，以及 VDM Instance/Descriptor 的模块自定义映射。下次先回答尚未计轮次的 BER 读取题：不能固定读取 Instance 1，必须先从 Descriptor Array 定位 BER 对应的 Active Instance。
+- **Session Resume**: 恢复 M10（18%），从 BER 的 VDM Descriptor 映射场景题继续；该题此前尚未作答，仍不增加累计提问轮次。
+- **Session Pause（今日结束）**: 学习者再次暂停课程。M10 保持 18%，累计提问仍为 104 轮；BER Descriptor 场景题仍未作答。下次继续判断应先解析 Descriptor Array，而不能将固定 VDM Instance 编号写死为 BER。
